@@ -9,7 +9,7 @@ class Ticker():
         self.ticker = ticker
         self.name = name.replace(' ', '-')
 
-    def fcf_analysis(self):
+    def fcf_analysis(self, discount_rate, terminal_growth):
         # Set up variables for timing and results 
         historic_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change'])
         historic_years = 10
@@ -56,8 +56,6 @@ class Ticker():
         future_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change','Value'])
         future_years = 9
         latest_fcf = historic_fcf['FCF'].iloc[[-1]].max()
-        discount_rate = 1.08
-        terminal_growth = 1.02
 
         # Calculate Future Data
         for i in range(future_years+1):
@@ -94,12 +92,30 @@ class Ticker():
         self.fcf_safety_margin = safety_margin
         self.current_price = current_price
 
-stock = Ticker('UPS', 'ups')
+# Set up variables
+results = pd.DataFrame(columns=['Ticker', 'FCF Intrinsic Value', 'FCF Safety Margin'])
+stock_list = pd.read_csv('stock_names.csv')
 
-stock.fcf_analysis()
+# Run Tests
+for i in range(len(stock_list)):
+    # Create Object
+    stock = Ticker('{}'.format(stock_list['Ticker'].loc[i]), '{}'.format(stock_list['Name'].loc[i]))
 
-print(stock.fcf_historic_data)
-print("")
-print(stock.fcf_future_data)
-print("Intrinsic Value:  {}".format(stock.fcf_intrinsic_value))
-print("Safety Margin:  {}".format(stock.fcf_safety_margin))
+    # Run Analysis
+    stock.fcf_analysis(1.08, 1.02)
+
+    # Print Completion Message
+    print("\n--------------- {}% Complete ---------------".format(round(((i+1)/len(stock_list))*100, 2)))
+
+    # Save Results
+    results.loc[i] = [stock.ticker, stock.fcf_intrinsic_value, stock.fcf_safety_margin]
+
+print("\nRESULTS")
+print(results)
+
+while True:
+    save_choice = input('Save Results (y/n)?  ')
+    if save_choice == 'y':
+        results.to_csv()
+    elif save_choice == 'n':
+        break
