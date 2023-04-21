@@ -15,7 +15,7 @@ class Ticker():
 
         # Start WebDriver for Firefox
         driver = webdriver.Firefox()
-        driver.get("https://www.macrotrends.net/stocks/charts/XPO/xpo/free-cash-flow")
+        driver.get("https://www.macrotrends.net/stocks/charts/{}/{}/free-cash-flow".format(self.ticker, self.name))
 
         # Scrape Historic Data
         for i in range(historic_years+1):
@@ -28,7 +28,7 @@ class Ticker():
         for i in range(historic_years):
             num1 = float(historic_fcf['FCF'].loc[i])
             num2 = float(historic_fcf['FCF'].loc[i+1])
-            historic_fcf['FCF % Change'].loc[i] = ((num1-num2)/num2)*100
+            historic_fcf['FCF % Change'].loc[i] = ((num1-num2)/abs(num2))*100
         
         # Decide Future FCF Growth
         fcf_change = list(historic_fcf['FCF % Change'])
@@ -39,12 +39,12 @@ class Ticker():
         num2 = historic_fcf['FCF'].iloc[[0]].max()
         annualized_fcf = ((num1/num2)**((len(historic_fcf)-1))) -1
 
-        if average_fcf_change < annualized_fcf and average_fcf_change <= 0.08:
+        if average_fcf_change < annualized_fcf and average_fcf_change <= 0.075:
             future_fcf_change = average_fcf_change + 1
-        elif annualized_fcf < average_fcf_change and annualized_fcf <= 0.08:
+        elif annualized_fcf < average_fcf_change and annualized_fcf <= 0.075:
             future_fcf_change = annualized_fcf + 1
         else:
-            future_fcf_change = 1.08
+            future_fcf_change = 1.075
 
         # Set up variables to create future data
         future_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change','Value'])
