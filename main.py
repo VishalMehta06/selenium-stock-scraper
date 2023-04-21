@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import pandas as pd
 import statistics as stat
+import yfinance as yf
 
 class Ticker():
     def __init__(self, ticker, name):
@@ -9,7 +10,7 @@ class Ticker():
         self.name = name.replace(' ', '-')
 
     def fcf_analysis(self):
-        # Set up variables for timing and results
+        # Set up variables for timing and results 
         historic_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change'])
         historic_years = 10
 
@@ -21,6 +22,11 @@ class Ticker():
         for i in range(historic_years+1):
             add_year = 2022-i
             historic_fcf.loc[i] = ['%d'%add_year, float(driver.find_element(By.XPATH, "//div[@class='col-xs-6']/table/tbody/tr[{}]/td[2]".format(i+1)).text.replace(',', '')), 0]
+
+        # Scrape Shares Outstanding Data
+        driver.get("https://www.macrotrends.net/stocks/charts/{}/{}/shares-outstanding".format(self.ticker, self.name))
+        outstanding_shares = float(driver.find_element(By.XPATH, "//div[@class='col-xs-6']/table/tbody/tr/td[2]").text.replace(",", ""))
+
         driver.close()
 
         # Reverse order of historic data and fill in FCF % Change
@@ -39,18 +45,19 @@ class Ticker():
         num2 = historic_fcf['FCF'].iloc[[0]].max()
         annualized_fcf = ((num1/num2)**((len(historic_fcf)-1))) -1
 
-        if average_fcf_change < annualized_fcf and average_fcf_change <= 0.075:
+        if average_fcf_change < annualized_fcf and average_fcf_change <= 0.08:
             future_fcf_change = average_fcf_change + 1
-        elif annualized_fcf < average_fcf_change and annualized_fcf <= 0.075:
+        elif annualized_fcf < average_fcf_change and annualized_fcf <= 0.08:
             future_fcf_change = annualized_fcf + 1
         else:
-            future_fcf_change = 1.075
+            future_fcf_change = 1.08
 
-        # Set up variables to create future data
+        # Set up variables to create future data (Future years = num_years - 1)
         future_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change','Value'])
-        future_years = 10
+        future_years = 9
         latest_fcf = historic_fcf['FCF'].iloc[[-1]].max()
         discount_rate = 1.08
+        terminal_growth = 1.02
 
         # Calculate Future Data
         for i in range(future_years+1):
@@ -61,14 +68,38 @@ class Ticker():
 
             # Reset the last FCF value to compound growth
             latest_fcf = add_fcf
+        
+        # Calculate Intrinsic Value
+        future_value_sum = 0
+        for i in range(len(future_fcf)):
+            future_value_sum += future_fcf['Value'].iloc[[i]].max()
 
+        terminal_value = (future_fcf['FCF'].iloc[[-1]].max() * terminal_growth)/(discount_rate-terminal_growth)
+        current_terminal_value = terminal_value/(discount_rate ** 10)
+        
+        future_value_sum += current_terminal_value
+        intrinsic_value = future_value_sum / outstanding_shares
+
+        # Current Price
+        df = yf.download(tickers=self.ticker, period='2day')
+        current_price = df['Close'].iloc[[-1]].max()
+
+        # Safety Margin
+        safety_margin = ((intrinsic_value - current_price) / current_price) * 100
+
+        # Record Results
         self.fcf_historic_data = historic_fcf
         self.fcf_future_data = future_fcf
+        self.fcf_intrinsic_value = intrinsic_value
+        self.fcf_safety_margin = safety_margin
+        self.current_price = current_price
 
-stock = Ticker('AAPL', 'apple')
+stock = Ticker('UPS', 'ups')
 
 stock.fcf_analysis()
 
 print(stock.fcf_historic_data)
 print("")
 print(stock.fcf_future_data)
+print("Intrinsic Value:  {}".format(stock.fcf_intrinsic_value))
+print("Safety Margin:  {}".format(stock.fcf_safety_margin))
