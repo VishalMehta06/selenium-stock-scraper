@@ -5,21 +5,29 @@ import statistics as stat
 import yfinance as yf
 
 class Ticker():
-    def __init__(self, ticker, name):
+    def __init__(self, ticker, name, historic_years):
         self.ticker = ticker
         self.name = name.replace(' ', '-')
+        self.historic_years = historic_years
 
-    def fcf_analysis(self, historic_years, discount_rate, terminal_growth):
+        # Current Price
+        df = yf.download(tickers=self.ticker, period='2day')
+        self.current_price = df['Close'].iloc[[-1]].max()
+
+    def fcf_analysis(self, discount_rate, terminal_growth):
+        # Set up input variables
+        discount_rate = (discount_rate/100) + 1
+        terminal_growth = (terminal_growth/100) + 1
+
         # Set up variables for timing and results 
         historic_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change'])
-        historic_years -= 1
 
         # Start WebDriver for Firefox
         driver = webdriver.Firefox()
         driver.get("https://www.macrotrends.net/stocks/charts/{}/{}/free-cash-flow".format(self.ticker, self.name))
 
         # Scrape Historic Data
-        for i in range(historic_years+1):
+        for i in range(self.historic_years):
             add_year = 2022-i
             historic_fcf.loc[i] = ['%d'%add_year, float(driver.find_element(By.XPATH, "//div[@class='col-xs-6']/table/tbody/tr[{}]/td[2]".format(i+1)).text.replace(',', '')), 0]
 
@@ -31,7 +39,7 @@ class Ticker():
 
         # Reverse order of historic data and fill in FCF % Change
         historic_fcf = historic_fcf.iloc[::-1]
-        for i in range(historic_years):
+        for i in range(self.historic_years-1):
             num1 = float(historic_fcf['FCF'].loc[i])
             num2 = float(historic_fcf['FCF'].loc[i+1])
             historic_fcf['FCF % Change'].loc[i] = ((num1-num2)/abs(num2))*100
@@ -77,48 +85,115 @@ class Ticker():
         
         future_value_sum += current_terminal_value
         intrinsic_value = future_value_sum / outstanding_shares
-        # Current Price
-        df = yf.download(tickers=self.ticker, period='2day')
-        current_price = df['Close'].iloc[[-1]].max()
 
         # Safety Margin
-        safety_margin = ((intrinsic_value - current_price) / current_price) * 100
+        safety_margin = ((intrinsic_value - self.current_price) / self.current_price) * 100
 
         # Record Results
         self.fcf_historic_data = historic_fcf
         self.fcf_future_data = future_fcf
         self.fcf_intrinsic_value = intrinsic_value
         self.fcf_safety_margin = safety_margin
-        self.current_price = current_price
+
+    def eps_analysis(self):
+        # Declare Variables for gathering historic data
+        historic_eps = pd.DataFrame(columns=['Year', 'EPS'])  
+        historic_pe = []
+
+        # Open Driver and URL
+        driver = webdriver.Firefox()
+        driver.get("https://www.macrotrends.net/stocks/charts/{}/{}/eps-earnings-per-share-diluted".format(self.ticker, self.name))
+        
+        # Scrape Historic EPS
+        for i in range(self.historic_years):
+            add_year = (2023 - self.historic_years) + i
+            historic_eps.loc[i] = ['%d'%add_year, float(driver.find_element(By.XPATH, "//table[@class='historical_data_table table']/tbody/tr[{}]/td[2]".format(self.historic_years-i)).text.replace(',', '').replace('$', ''))]
+        
+        # Scrape Historic PE
+        driver.get("https://www.macrotrends.net/stocks/charts/{}/{}/pe-ratio".format(self.ticker, self.name))
+        for i in range(self.historic_years*4):
+            try:
+                historic_pe.append(float(driver.find_element(By.XPATH, "//div[@id='main_content']/div[8]/table/tbody/tr[{}]/td[4]".format(i+1)).text.replace(',', '')))
+            except:
+                break
+        # Calculate Average PE
+        average_pe = sum(historic_pe)/len(historic_pe)
+
+        # Close Web App
+        driver.close()
+
+        # Declare variables for future EPS and PE prices
+        future_eps = pd.DataFrame(columns=['Year', 'EPS', 'Price'])
+        latest_eps = historic_eps['EPS'].iloc[[-1]].max()
+
+        # Find EPS Growth
+        num1 = historic_eps['EPS'].iloc[[-1]].max()
+        num2 = historic_eps['EPS'].iloc[[0]].max()
+        eps_growth = round((num1/num2)**(1/self.historic_years), 5)
+        
+        # Calculate Future EPS
+        for i in range(10):
+            add_year = 2023 + i
+            add_eps = round(latest_eps * eps_growth, 2)
+            add_price = round(add_eps * average_pe, 2)
+            future_eps.loc[i] = ['%d'%add_year, add_eps, add_price]
+
+            latest_eps = add_eps
+        
+        self.eps_historic = historic_eps
+        self.eps_future = future_eps
+        self.pe_average = average_pe
+        self.eps_growth_rate = (eps_growth-1)*100
+        self.eps_five_year_growth = (((future_eps['EPS'].iloc[[4]].max() / self.current_price)**(1/5)) - 1)*100
+        self.eps_ten_year_growth = (((future_eps['EPS'].iloc[[9]].max() / self.current_price)**(1/10)) - 1)*100
+
 
 # Set up variables
-results = pd.DataFrame(columns=['Ticker', 'FCF Intrinsic Value', 'FCF Safety Margin'])
-stock_list = pd.read_csv('stock_names.csv')
+#results = pd.DataFrame(columns=['Ticker', 'FCF Intrinsic Value', 'FCF Safety Margin'])
+#stock_list = pd.read_csv('stock_names.csv')
 
 # Run Tests
-for i in range(len(stock_list)):
+#for i in range(len(stock_list)):
     # Create Object
-    stock = Ticker('{}'.format(stock_list['Ticker'].loc[i]), '{}'.format(stock_list['Name'].loc[i]))
+#    stock = Ticker('{}'.format(stock_list['Ticker'].loc[i]), '{}'.format(stock_list['Name'].loc[i]))
 
     # Run Analysis
-    stock.fcf_analysis(stock_list['Years Past'].iloc[[i]].max(), 1.08, 1.02)
+#    stock.fcf_analysis(stock_list['Years Past'].iloc[[i]].max(), 1.08, 1.02)
 
     # Print Completion Message
-    print("\n--------------- {}% Complete ---------------".format(round(((i+1)/len(stock_list))*100, 2)))
+#    print("\n--------------- {}% Complete ---------------".format(round(((i+1)/len(stock_list))*100, 2)))
 
     # Save Results
-    results.loc[i] = [stock.ticker, round(stock.fcf_intrinsic_value, 2), round(stock.fcf_safety_margin, 2)]
+#    results.loc[i] = [stock.ticker, round(stock.fcf_intrinsic_value, 2), round(stock.fcf_safety_margin, 2)]
 
-print("\nRESULTS")
-results.sort_values('FCF Safety Margin', inplace=True, ascending=False)
-print(results)
+#print("\nRESULTS")
+#results.sort_values('FCF Safety Margin', inplace=True, ascending=False)
+#print(results)
 
-while True:
-    save_choice = input('Save Results (y/n)?  ')
-    if save_choice == 'y':
-        results.to_csv('results.csv')
-        break
-    elif save_choice == 'n':
-        print("\n")
-        print(results.to_csv())
-        break
+#while True:
+#    save_choice = input('Save Results (y/n)?  ')
+#    if save_choice == 'y':
+#        results.to_csv('results.csv')
+#        break
+#    elif save_choice == 'n':
+#        print("\n")
+#        print(results.to_csv())
+#        break
+
+stock = Ticker('AAPL', 'apple', 10)
+stock.fcf_analysis(8, 2)
+#stock.eps_analysis()
+
+#print(stock.eps_historic)
+#print("")
+#print(stock.eps_future)
+#print("")
+#print("Average PE:  {}".format(stock.pe_average))
+#print("EPS Growth:  {}".format(stock.eps_growth_rate))
+#print("5 Year Growth:  {}".format(stock.eps_five_year_growth))
+#print("10 Year Growth:  {}".format(stock.eps_ten_year_growth))
+
+print(stock.fcf_historic_data)
+print(stock.fcf_future_data)
+print(stock.fcf_intrinsic_value)
+print(stock.fcf_safety_margin)
