@@ -9,10 +9,10 @@ class Ticker():
         self.ticker = ticker
         self.name = name.replace(' ', '-')
 
-    def fcf_analysis(self, discount_rate, terminal_growth):
+    def fcf_analysis(self, historic_years, discount_rate, terminal_growth):
         # Set up variables for timing and results 
         historic_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change'])
-        historic_years = 10
+        historic_years -= 1
 
         # Start WebDriver for Firefox
         driver = webdriver.Firefox()
@@ -45,12 +45,13 @@ class Ticker():
         num2 = historic_fcf['FCF'].iloc[[0]].max()
         annualized_fcf = ((num1/num2)**((len(historic_fcf)-1))) -1
 
-        if average_fcf_change < annualized_fcf and average_fcf_change <= 0.08:
+        if average_fcf_change < annualized_fcf and abs(average_fcf_change) <= 0.08:
             future_fcf_change = average_fcf_change + 1
-        elif annualized_fcf < average_fcf_change and annualized_fcf <= 0.08:
+        elif annualized_fcf < average_fcf_change and abs(annualized_fcf) <= 0.08:
             future_fcf_change = annualized_fcf + 1
         else:
             future_fcf_change = 1.08
+        future_fcf_change = 1.08
 
         # Set up variables to create future data (Future years = num_years - 1)
         future_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change','Value'])
@@ -61,7 +62,7 @@ class Ticker():
         for i in range(future_years+1):
             add_fcf = latest_fcf*future_fcf_change
             add_year = 2023 + i
-            add_price = add_fcf/(discount_rate**(i+1))
+            add_price = add_fcf/(discount_rate**(add_year - 2022))
             future_fcf.loc[i] = ['%d'%add_year, add_fcf, (future_fcf_change-1)*100, add_price]
 
             # Reset the last FCF value to compound growth
@@ -71,13 +72,11 @@ class Ticker():
         future_value_sum = 0
         for i in range(len(future_fcf)):
             future_value_sum += future_fcf['Value'].iloc[[i]].max()
-
         terminal_value = (future_fcf['FCF'].iloc[[-1]].max() * terminal_growth)/(discount_rate-terminal_growth)
         current_terminal_value = terminal_value/(discount_rate ** 10)
         
         future_value_sum += current_terminal_value
         intrinsic_value = future_value_sum / outstanding_shares
-
         # Current Price
         df = yf.download(tickers=self.ticker, period='2day')
         current_price = df['Close'].iloc[[-1]].max()
@@ -102,20 +101,24 @@ for i in range(len(stock_list)):
     stock = Ticker('{}'.format(stock_list['Ticker'].loc[i]), '{}'.format(stock_list['Name'].loc[i]))
 
     # Run Analysis
-    stock.fcf_analysis(1.08, 1.02)
+    stock.fcf_analysis(stock_list['Years Past'].iloc[[i]].max(), 1.08, 1.02)
 
     # Print Completion Message
     print("\n--------------- {}% Complete ---------------".format(round(((i+1)/len(stock_list))*100, 2)))
 
     # Save Results
-    results.loc[i] = [stock.ticker, stock.fcf_intrinsic_value, stock.fcf_safety_margin]
+    results.loc[i] = [stock.ticker, round(stock.fcf_intrinsic_value, 2), round(stock.fcf_safety_margin, 2)]
 
 print("\nRESULTS")
+results.sort_values('FCF Safety Margin', inplace=True, ascending=False)
 print(results)
 
 while True:
     save_choice = input('Save Results (y/n)?  ')
     if save_choice == 'y':
-        results.to_csv()
+        results.to_csv('results.csv')
+        break
     elif save_choice == 'n':
+        print("\n")
+        print(results.to_csv())
         break
