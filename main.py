@@ -4,6 +4,7 @@ import pandas as pd
 import statistics as stat
 import yfinance as yf
 import os
+import numpy as np
 
 class Ticker():
     def __init__(self, ticker, name, historic_years):
@@ -58,9 +59,18 @@ class Ticker():
             future_fcf_change = average_fcf_change + 1
         elif annualized_fcf < average_fcf_change and abs(annualized_fcf) <= 0.08:
             future_fcf_change = annualized_fcf + 1
-        else:
+        elif annualized_fcf > 0 and average_fcf_change > 0:
             future_fcf_change = 1.08
-        future_fcf_change = 1.08
+        else:
+            future_fcf_change = -1.04
+        
+
+        #if average_fcf_change < annualized_fcf and abs(average_fcf_change) <= 0.08:
+        #    future_fcf_change = average_fcf_change + 1
+        #elif annualized_fcf < average_fcf_change and abs(annualized_fcf) <= 0.08:
+        #    future_fcf_change = annualized_fcf + 1
+        #else:
+        #    future_fcf_change = 1.08
 
         # Set up variables to create future data (Future years = num_years - 1)
         future_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change','Value'])
@@ -69,10 +79,16 @@ class Ticker():
 
         # Calculate Future Data
         for i in range(future_years+1):
-            add_fcf = latest_fcf*future_fcf_change
+            if future_fcf_change >= 0:
+                add_fcf_change = (future_fcf_change-1)*100
+                add_fcf = latest_fcf*future_fcf_change
+            else:
+                add_fcf_change = (future_fcf_change+1)*100
+                add_fcf = abs(latest_fcf)*future_fcf_change
             add_year = 2023 + i
             add_price = add_fcf/(discount_rate**(add_year - 2022))
-            future_fcf.loc[i] = ['%d'%add_year, add_fcf, (future_fcf_change-1)*100, add_price]
+
+            future_fcf.loc[i] = ['%d'%add_year, add_fcf, add_fcf_change, add_price]
 
             # Reset the last FCF value to compound growth
             latest_fcf = add_fcf
@@ -130,13 +146,18 @@ class Ticker():
         # Find EPS Growth
         num1 = historic_eps['EPS'].iloc[[-1]].max()
         num2 = historic_eps['EPS'].iloc[[0]].max()
-        if num1 and num2 and self.historic_years:
+        if num1/num2 < 0:
+            eps_growth = round(-(abs(num1/num2)**(1/self.historic_years)), 5)
+        else:
             eps_growth = round((num1/num2)**(1/self.historic_years), 5)
         
         # Calculate Future EPS
         for i in range(10):
             add_year = 2023 + i
-            add_eps = round(latest_eps * eps_growth, 2)
+            if eps_growth < 0:
+                add_eps = round(-(abs(latest_eps) * abs(eps_growth)), 2)
+            else:
+                add_eps = round((abs(latest_eps) * eps_growth), 2)
             add_price = round(add_eps * average_pe, 2)
             future_eps.loc[i] = ['%d'%add_year, add_eps, add_price]
 
@@ -146,8 +167,15 @@ class Ticker():
         self.eps_future = future_eps
         self.pe_average = average_pe
         self.eps_growth_rate = (eps_growth-1)*100
-        self.eps_five_year_growth = (((future_eps['EPS'].iloc[[4]].max() / self.current_price)**(1/5)) - 1)*100
-        self.eps_ten_year_growth = (((future_eps['EPS'].iloc[[9]].max() / self.current_price)**(1/10)) - 1)*100
+        if future_eps['EPS'].iloc[[4]].max() < 0:
+            self.eps_five_year_growth = ((-(abs(future_eps['EPS'].iloc[[4]].max()) / self.current_price)**(1/5)))*100
+            print(23)
+        else:
+            self.eps_five_year_growth = (((future_eps['EPS'].iloc[[4]].max() / self.current_price)**(1/5)))*100
+        if future_eps['EPS'].iloc[[9]].max() < 0:
+            self.eps_ten_year_growth = ((-(abs(future_eps['EPS'].iloc[[9]].max()) / self.current_price)**(1/10)))*100
+        else:
+            self.eps_ten_year_growth = (((future_eps['EPS'].iloc[[9]].max() / self.current_price)**(1/10)))*100
     
     def print_out(self):
         os.system('cls')
@@ -158,22 +186,22 @@ class Ticker():
         # Stock Ticker
         print(self.ticker)
         # Current Price
-        print(self.current_price)
+        print("${}".format(self.current_price))
 
         # Required:
         # Intrinsic Value
-        print("FCF Intrinsic Value:  {}".format(self.fcf_intrinsic_value))
+        print("\n\nFCF Intrinsic Value:  ${}".format(round(self.fcf_intrinsic_value, 2)))
         # Safety Margin
-        print("FCF Safety Margin:  {}\n".format(self.fcf_safety_margin))
+        print("FCF Safety Margin:  {}%\n".format(round(self.fcf_safety_margin, 3)))
 
         # EPS Growth
-        print("EPS Growth Rate:  {}".format(self.eps_growth_rate))
+        print("EPS Growth Rate:  {}%".format(round(self.eps_growth_rate, 3)))
         # Average PE
-        print("Average PE:  {}".format(self.pe_average))
+        print("Average PE:  {}".format(round(self.pe_average, 3)))
         # 5 year Growth
-        print("EPS 5 Year Movement:  {}".format(self.eps_five_year_growth))
+        print("EPS 5 Year Movement:  {}%".format(round(self.eps_five_year_growth, 3)))
         # 10 year Growth
-        print("EPS 10 Year Movement:  {}\n".format(self.eps_ten_year_growth))
+        print("EPS 10 Year Movement:  {}%\n".format(round(self.eps_ten_year_growth, 3)))
 
         # Extra:
         # Historic FCF
@@ -195,7 +223,7 @@ while True:
         stock = Ticker(input("\nTicker:  ").upper(), input("\nName:  ").lower().replace(" ", "-"), int(input("\nTime Past:  ")))
         stock.fcf_analysis(8, 2)
         stock.eps_analysis()
-        #stock.print_out()
+        stock.print_out()
         input(":  ")
 
     elif stock_action_choice == '2':
