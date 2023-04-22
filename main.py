@@ -130,7 +130,8 @@ class Ticker():
         # Find EPS Growth
         num1 = historic_eps['EPS'].iloc[[-1]].max()
         num2 = historic_eps['EPS'].iloc[[0]].max()
-        eps_growth = round((num1/num2)**(1/self.historic_years), 5)
+        if num1 and num2 and self.historic_years:
+            eps_growth = round((num1/num2)**(1/self.historic_years), 5)
         
         # Calculate Future EPS
         for i in range(10):
@@ -148,8 +149,42 @@ class Ticker():
         self.eps_five_year_growth = (((future_eps['EPS'].iloc[[4]].max() / self.current_price)**(1/5)) - 1)*100
         self.eps_ten_year_growth = (((future_eps['EPS'].iloc[[9]].max() / self.current_price)**(1/10)) - 1)*100
     
-    def output(self):
-        pass
+    def print_out(self):
+        os.system('cls')
+        print("-----------------------------------------------------------------------------------------------------------------")
+        print("RESULTS\n\n")
+
+        # Basic:
+        # Stock Ticker
+        print(self.ticker)
+        # Current Price
+        print(self.current_price)
+
+        # Required:
+        # Intrinsic Value
+        print("FCF Intrinsic Value:  {}".format(self.fcf_intrinsic_value))
+        # Safety Margin
+        print("FCF Safety Margin:  {}\n".format(self.fcf_safety_margin))
+
+        # EPS Growth
+        print("EPS Growth Rate:  {}".format(self.eps_growth_rate))
+        # Average PE
+        print("Average PE:  {}".format(self.pe_average))
+        # 5 year Growth
+        print("EPS 5 Year Movement:  {}".format(self.eps_five_year_growth))
+        # 10 year Growth
+        print("EPS 10 Year Movement:  {}\n".format(self.eps_ten_year_growth))
+
+        # Extra:
+        # Historic FCF
+        print("FCF Historic Data:  \n{}".format(self.fcf_historic_data))
+        # Future FCF
+        print("FCF Future Data:  \n{}".format(self.fcf_future_data))
+
+        # Historic EPS
+        print("EPS Historic Data:  \n{}".format(self.eps_historic))
+        # Future EPS
+        print("EPS Future Data:  \n{}".format(self.eps_future))
 
 while True:
     os.system('cls')
@@ -157,7 +192,11 @@ while True:
     print("LONG TERM INVESTING\n\n")
     stock_action_choice = input(" (1) Input Stock\n (2) Use Stock Lists\n (3) Edit a Stock List\n (4) Create New Stock List\n (5) Exit App\n\n:  ")
     if stock_action_choice == '1':
-        pass
+        stock = Ticker(input("\nTicker:  ").upper(), input("\nName:  ").lower().replace(" ", "-"), int(input("\nTime Past:  ")))
+        stock.fcf_analysis(8, 2)
+        stock.eps_analysis()
+        #stock.print_out()
+        input(":  ")
 
     elif stock_action_choice == '2':
         pass
@@ -184,10 +223,11 @@ while True:
             row_edit = input("{}\n\nRow to Edit (Submit blank to stop adding stocks):  ".format(edit_stocks))
             if row_edit == "":
                 break
-            stock_edit_ticker = input('{}\n\nTicker:  '.format(stocks))
+            os.system('cls')
+            stock_edit_ticker = input('{}\n\nTicker:  '.format(edit_stocks.iloc[[int(row_edit)]]))
             stock_edit_name = input('\nName:  ')
             stock_edit_years = int(input('\nYears Past:  '))
-            edit_stocks.loc[int(row_edit)] = [stock_edit_ticker, stock_edit_name, stock_edit_years]
+            edit_stocks['Ticker'].loc[int(row_edit)], edit_stocks['Name'].loc[int(row_edit)], edit_stocks['Years Past'].loc[int(row_edit)] = stock_edit_ticker, stock_edit_name, stock_edit_years
 
         while edit_stocks_correct == True:
             os.system('cls')
