@@ -3,6 +3,7 @@ from selenium.webdriver.common.by import By
 import pandas as pd
 import statistics as stat
 import yfinance as yf
+import os
 
 class Ticker():
     def __init__(self, ticker, name, historic_years):
@@ -146,6 +147,91 @@ class Ticker():
         self.eps_growth_rate = (eps_growth-1)*100
         self.eps_five_year_growth = (((future_eps['EPS'].iloc[[4]].max() / self.current_price)**(1/5)) - 1)*100
         self.eps_ten_year_growth = (((future_eps['EPS'].iloc[[9]].max() / self.current_price)**(1/10)) - 1)*100
+    
+    def output(self):
+        pass
+
+while True:
+    os.system('cls')
+    print("-----------------------------------------------------------------------------------------------------------------")
+    print("LONG TERM INVESTING\n\n")
+    stock_action_choice = input(" (1) Input Stock\n (2) Use Stock Lists\n (3) Edit a Stock List\n (4) Create New Stock List\n (5) Exit App\n\n:  ")
+    if stock_action_choice == '1':
+        pass
+
+    elif stock_action_choice == '2':
+        pass
+
+    elif stock_action_choice == '3':
+        os.system('cls')
+        print("-----------------------------------------------------------------------------------------------------------------")
+        print("EDIT A STOCK LIST\n\n")
+        edit_list_name = input('Enter List Name:  ').lower()
+        try:
+            edit_stocks = pd.read_csv(edit_list_name)
+            edit_stocks_correct = True
+        except:
+            print('Incorrect Stock List Name')
+            edit_stocks_correct = False
+            input(":  ")
+            pass
+        
+        while edit_stocks_correct == True:
+            os.system('cls')
+            print("-----------------------------------------------------------------------------------------------------------------")
+            print("EDIT A STOCK LIST\n\n")
+            
+            row_edit = input("{}\n\nRow to Edit (Submit blank to stop adding stocks):  ".format(edit_stocks))
+            if row_edit == "":
+                break
+            stock_edit_ticker = input('{}\n\nTicker:  '.format(stocks))
+            stock_edit_name = input('\nName:  ')
+            stock_edit_years = int(input('\nYears Past:  '))
+            edit_stocks.loc[int(row_edit)] = [stock_edit_ticker, stock_edit_name, stock_edit_years]
+
+        while edit_stocks_correct == True:
+            os.system('cls')
+            print("-----------------------------------------------------------------------------------------------------------------")
+            print("EDIT A STOCK LIST\n\n")
+            list_save_choice = input('{}\n\nDo you want to save the list you made (y/n):  '.format(edit_stocks)).lower()
+            if list_save_choice == 'y':
+                edit_stocks.to_csv(edit_list_name)
+                break
+            elif list_save_choice == 'n':
+                print(edit_stocks.to_csv())
+                input("The CSV anyways:  ")
+                break
+
+    elif stock_action_choice == '4':
+        stocks = pd.DataFrame(columns=['Ticker', 'Name', 'Years Past'])
+        while True:
+            os.system('cls')
+            print("-----------------------------------------------------------------------------------------------------------------")
+            print("CREATE A STOCK LIST\n\n")
+            stock_add_ticker = input('{}\n\nTicker (Submit blank to stop adding stocks):  '.format(stocks))
+            if stock_add_ticker == "":
+                os.system('cls')
+                break
+            stock_add_name = input('\nName:  ')
+            stock_add_years = int(input('\nYears Past:  '))
+
+            stocks.loc[len(stocks)] = [stock_add_ticker, stock_add_name, stock_add_years]
+        
+        while True:
+            print("-----------------------------------------------------------------------------------------------------------------")
+            print("CREATE A STOCK LIST\n\n")
+            list_save_choice = input('{}\n\nDo you want to save the list you made (y/n):  '.format(stocks)).lower()
+            if list_save_choice == 'y':
+                stocks.to_csv(input('\nList Name:  ').lower())
+                break
+            elif list_save_choice == 'n':
+                print(stocks.to_csv())
+                break
+    
+    elif stock_action_choice == '5':
+        os._exit(0)
+
+
 
 
 # Set up variables
@@ -180,8 +266,8 @@ class Ticker():
 #        print(results.to_csv())
 #        break
 
-stock = Ticker('AAPL', 'apple', 10)
-stock.fcf_analysis(8, 2)
+#stock = Ticker('AAPL', 'apple', 10)
+#stock.fcf_analysis(8, 2)
 #stock.eps_analysis()
 
 #print(stock.eps_historic)
@@ -193,7 +279,7 @@ stock.fcf_analysis(8, 2)
 #print("5 Year Growth:  {}".format(stock.eps_five_year_growth))
 #print("10 Year Growth:  {}".format(stock.eps_ten_year_growth))
 
-print(stock.fcf_historic_data)
-print(stock.fcf_future_data)
-print(stock.fcf_intrinsic_value)
-print(stock.fcf_safety_margin)
+#print(stock.fcf_historic_data)
+#print(stock.fcf_future_data)
+#print(stock.fcf_intrinsic_value)
+#print(stock.fcf_safety_margin)
