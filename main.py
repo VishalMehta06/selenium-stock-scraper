@@ -25,7 +25,6 @@ class Ticker():
         historic_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change'])
 
         # Start WebDriver for Firefox
-        driver = webdriver.Firefox()
         driver.get("https://www.macrotrends.net/stocks/charts/{}/{}/free-cash-flow".format(self.ticker, self.name))
 
         # Scrape Historic Data
@@ -36,8 +35,6 @@ class Ticker():
         # Scrape Shares Outstanding Data
         driver.get("https://www.macrotrends.net/stocks/charts/{}/{}/shares-outstanding".format(self.ticker, self.name))
         outstanding_shares = float(driver.find_element(By.XPATH, "//div[@class='col-xs-6']/table/tbody/tr/td[2]").text.replace(",", ""))
-
-        driver.close()
 
         # Reverse order of historic data and fill in FCF % Change
         historic_fcf = historic_fcf.iloc[::-1]
@@ -118,7 +115,6 @@ class Ticker():
         historic_pe = []
 
         # Open Driver and URL
-        driver = webdriver.Firefox()
         driver.get("https://www.macrotrends.net/stocks/charts/{}/{}/eps-earnings-per-share-diluted".format(self.ticker, self.name))
         
         # Scrape Historic EPS
@@ -135,9 +131,6 @@ class Ticker():
                 break
         # Calculate Average PE
         average_pe = sum(historic_pe)/len(historic_pe)
-
-        # Close Web App
-        driver.close()
 
         # Declare variables for future EPS and PE prices
         future_eps = pd.DataFrame(columns=['Year', 'EPS', 'Price'])
@@ -167,15 +160,8 @@ class Ticker():
         self.eps_future = future_eps
         self.pe_average = average_pe
         self.eps_growth_rate = (eps_growth-1)*100
-        if future_eps['EPS'].iloc[[4]].max() < 0:
-            self.eps_five_year_growth = ((-(abs(future_eps['EPS'].iloc[[4]].max()) / self.current_price)**(1/5)))*100
-            print(23)
-        else:
-            self.eps_five_year_growth = (((future_eps['EPS'].iloc[[4]].max() / self.current_price)**(1/5)))*100
-        if future_eps['EPS'].iloc[[9]].max() < 0:
-            self.eps_ten_year_growth = ((-(abs(future_eps['EPS'].iloc[[9]].max()) / self.current_price)**(1/10)))*100
-        else:
-            self.eps_ten_year_growth = (((future_eps['EPS'].iloc[[9]].max() / self.current_price)**(1/10)))*100
+        self.eps_five_year_value = future_eps['Price'].iloc[[4]].max()
+        self.eps_ten_year_value = future_eps['Price'].iloc[[9]].max()
     
     def print_out(self):
         os.system('cls')
@@ -199,9 +185,9 @@ class Ticker():
         # Average PE
         print("Average PE:  {}".format(round(self.pe_average, 3)))
         # 5 year Growth
-        print("EPS 5 Year Movement:  {}%".format(round(self.eps_five_year_growth, 3)))
+        print("EPS 5 Year Movement:  ${}".format(round(self.eps_five_year_value, 3)))
         # 10 year Growth
-        print("EPS 10 Year Movement:  {}%\n".format(round(self.eps_ten_year_growth, 3)))
+        print("EPS 10 Year Movement:  ${}\n".format(round(self.eps_ten_year_value, 3)))
 
         # Extra:
         # Historic FCF
@@ -210,7 +196,7 @@ class Ticker():
         print("FCF Future Data:  \n{}".format(self.fcf_future_data))
 
         # Historic EPS
-        print("EPS Historic Data:  \n{}".format(self.eps_historic))
+        print("\nEPS Historic Data:  \n{}".format(self.eps_historic))
         # Future EPS
         print("EPS Future Data:  \n{}".format(self.eps_future))
 
@@ -221,13 +207,39 @@ while True:
     stock_action_choice = input(" (1) Input Stock\n (2) Use Stock Lists\n (3) Edit a Stock List\n (4) Create New Stock List\n (5) Exit App\n\n:  ")
     if stock_action_choice == '1':
         stock = Ticker(input("\nTicker:  ").upper(), input("\nName:  ").lower().replace(" ", "-"), int(input("\nTime Past:  ")))
+        driver = webdriver.Firefox()
         stock.fcf_analysis(8, 2)
         stock.eps_analysis()
         stock.print_out()
+        driver.close()
         input(":  ")
 
     elif stock_action_choice == '2':
-        pass
+        stock_list_name = input('\nList Name:  ').lower()
+        stock_list = pd.read_csv(stock_list_name)
+        results = pd.DataFrame(columns=['Ticker', 'Current Price','Intrinsic Value (FCF)', 'Safety Margin (FCF)', 'Historic EPS Growth', 'Average PE', '5 Year Price (EPS)', '10 Year Price (EPS)'])
+        driver = webdriver.Firefox()
+        
+        for i in range(len(stock_list)):
+            stock = Ticker(stock_list['Ticker'].loc[i], stock_list['Name'].loc[i], stock_list['Years Past'].loc[i])
+            print(stock.ticker)
+            stock.fcf_analysis(8, 2)
+            stock.eps_analysis()
+
+            results.loc[i] = [stock.ticker, stock.current_price,stock.fcf_intrinsic_value, stock.fcf_safety_margin, stock.eps_growth_rate, stock.pe_average, stock.eps_five_year_value, stock.eps_ten_year_value]
+
+        driver.close()
+
+        list_save_choice = input('{}\n\nDo you want to save results (y/n):  '.format(results)).lower()
+        while True:
+            if list_save_choice == 'y':
+                results.to_csv('results.csv')
+                break
+            elif list_save_choice == 'n':
+                print(results.to_csv())
+                input("The CSV anyways:  ")
+                break
+            
 
     elif stock_action_choice == '3':
         os.system('cls')
