@@ -60,14 +60,6 @@ class Ticker():
             future_fcf_change = 1.08
         else:
             future_fcf_change = -1.04
-        
-
-        #if average_fcf_change < annualized_fcf and abs(average_fcf_change) <= 0.08:
-        #    future_fcf_change = average_fcf_change + 1
-        #elif annualized_fcf < average_fcf_change and abs(annualized_fcf) <= 0.08:
-        #    future_fcf_change = annualized_fcf + 1
-        #else:
-        #    future_fcf_change = 1.08
 
         # Set up variables to create future data (Future years = num_years - 1)
         future_fcf = pd.DataFrame(columns=['Year', 'FCF', 'FCF % Change','Value'])
@@ -310,56 +302,3 @@ while True:
     
     elif stock_action_choice == '5':
         os._exit(0)
-
-
-
-
-# Set up variables
-#results = pd.DataFrame(columns=['Ticker', 'FCF Intrinsic Value', 'FCF Safety Margin'])
-#stock_list = pd.read_csv('stock_names.csv')
-
-# Run Tests
-#for i in range(len(stock_list)):
-    # Create Object
-#    stock = Ticker('{}'.format(stock_list['Ticker'].loc[i]), '{}'.format(stock_list['Name'].loc[i]))
-
-    # Run Analysis
-#    stock.fcf_analysis(stock_list['Years Past'].iloc[[i]].max(), 1.08, 1.02)
-
-    # Print Completion Message
-#    print("\n--------------- {}% Complete ---------------".format(round(((i+1)/len(stock_list))*100, 2)))
-
-    # Save Results
-#    results.loc[i] = [stock.ticker, round(stock.fcf_intrinsic_value, 2), round(stock.fcf_safety_margin, 2)]
-
-#print("\nRESULTS")
-#results.sort_values('FCF Safety Margin', inplace=True, ascending=False)
-#print(results)
-
-#while True:
-#    save_choice = input('Save Results (y/n)?  ')
-#    if save_choice == 'y':
-#        results.to_csv('results.csv')
-#        break
-#    elif save_choice == 'n':
-#        print("\n")
-#        print(results.to_csv())
-#        break
-
-#stock = Ticker('AAPL', 'apple', 10)
-#stock.fcf_analysis(8, 2)
-#stock.eps_analysis()
-
-#print(stock.eps_historic)
-#print("")
-#print(stock.eps_future)
-#print("")
-#print("Average PE:  {}".format(stock.pe_average))
-#print("EPS Growth:  {}".format(stock.eps_growth_rate))
-#print("5 Year Growth:  {}".format(stock.eps_five_year_growth))
-#print("10 Year Growth:  {}".format(stock.eps_ten_year_growth))
-
-#print(stock.fcf_historic_data)
-#print(stock.fcf_future_data)
-#print(stock.fcf_intrinsic_value)
-#print(stock.fcf_safety_margin)
